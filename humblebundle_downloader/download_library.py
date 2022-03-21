@@ -13,10 +13,11 @@ logger = logging.getLogger(__name__)
 
 def _clean_name(dirty_str):
     allowed_chars = (' ', '_', '.', '-', '[', ']')
-    clean = []
-    for c in dirty_str.replace('+', '_').replace(':', ' -'):
-        if c.isalpha() or c.isdigit() or c in allowed_chars:
-            clean.append(c)
+    clean = [
+        c
+        for c in dirty_str.replace('+', '_').replace(':', ' -')
+        if c.isalpha() or c.isdigit() or c in allowed_chars
+    ]
 
     return "".join(clean).strip().rstrip('.')
 
@@ -52,15 +53,13 @@ class DownloadLibrary:
                 with open(cookie_path, 'r') as f:
                     self.session.headers.update({'cookie': f.read().strip()})
         elif cookie_auth:
-            self.session.headers.update(
-                {'cookie': '_simpleauth_sess={}'.format(cookie_auth)}
-            )
+            self.session.headers.update({'cookie': f'_simpleauth_sess={cookie_auth}'})
 
     def start(self):
 
         self.cache_file = os.path.join(self.library_path, '.cache.json')
         self.cache_data = self._load_cache_data(self.cache_file)
-        self.purchase_keys = self.purchase_keys if self.purchase_keys else self._get_purchase_keys()  # noqa: E501
+        self.purchase_keys = self.purchase_keys or self._get_purchase_keys()
 
         if self.trove is True:
             logger.info("Only checking the Humble Trove...")
@@ -210,7 +209,7 @@ class DownloadLibrary:
         logger.debug("Order request: {order_r}".format(order_r=order_r))
         order = order_r.json()
         bundle_title = _clean_name(order['product']['human_name'])
-        logger.info("Checking bundle: " + str(bundle_title))
+        logger.info(f"Checking bundle: {str(bundle_title)}")
         for product in order['subproducts']:
             self._process_product(order_id, bundle_title, product)
 
@@ -254,7 +253,7 @@ class DownloadLibrary:
                     continue
 
                 url_filename = url.split('?')[0].split('/')[-1]
-                cache_file_key = order_id + ':' + url_filename
+                cache_file_key = f'{order_id}:{url_filename}'
                 ext = url_filename.split('.')[-1]
                 if self._should_download_file_type(ext) is False:
                     logger.info("Skipping the file {url_filename}"
@@ -362,9 +361,9 @@ class DownloadLibrary:
                 for data in product_r.iter_content(chunk_size=4096):
                     dl += len(data)
                     outfile.write(data)
-                    pb_width = 50
-                    done = int(pb_width * dl / total_length)
                     if self.progress_bar:
+                        pb_width = 50
+                        done = int(pb_width * dl / total_length)
                         print("\t{percent}% [{filler}{space}]"
                               .format(percent=int(done * (100 / pb_width)),
                                       filler='=' * done,
@@ -390,7 +389,7 @@ class DownloadLibrary:
             logger.exception("Failed to get list of purchases")
             return []
 
-        logger.debug("Library request: " + str(library_r))
+        logger.debug(f"Library request: {str(library_r)}")
         library_page = parsel.Selector(text=library_r.text)
         user_data = library_page.css('#user-home-json-data').xpath('string()').extract_first()  # noqa: E501
         if user_data is None:
